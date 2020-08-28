@@ -2,7 +2,7 @@ import argparse
 import csv
 
 from GameInfo import GameInfo
-from authentication import connect
+from connections import connect
 
 BUNDLE_PAGE_URL_FORMAT = "https://itch.io/bundle/download/{}?page={}"
 OUTPUT_ENCODING = "UTF-8"
