@@ -38,19 +38,13 @@ def html_to_game_info(html_tree):
         url=title_node.attrib['href'],
         summary=summary_node.text,
         file_count=int(re.match(r"(\d+) files?", file_count_node.text).group(1)) if file_count_node is not None else 1,
-        operating_systems=operating_systems,
-        bundle_page_number=None
+        operating_systems=operating_systems
     )
 
 
 def scrape_bundle_page(bundle_slug, page_number, cookie):
     page_html_tree = get_bundle_page_html_tree(bundle_slug, cookie, page_number)
-
-    games_in_page = parse_bundle_page(page_html_tree)
-    for game_info in games_in_page:
-        game_info.bundle_page_number = page_number
-
-    return games_in_page
+    return parse_bundle_page(page_html_tree)
 
 
 @functools.lru_cache
@@ -75,13 +69,11 @@ def parse_bundle_page(html_tree):
     return games
 
 
-def dump_game_info(games, path):
-    with open(path, "w", newline="", encoding=ENCODING) as output_file:
+def dump_game_info(games, path, page_in_bundle):
+    with open(path, "a", newline="", encoding=ENCODING) as output_file:
         writer = csv.writer(output_file)
-        writer.writerow(GameInfo.get_friendly_field_names())
-
         for game in games:
-            writer.writerow(game.get_friendly_field_values())
+            writer.writerow(game.get_friendly_field_values() + (page_in_bundle,))
 
 
 def parse_args():
@@ -96,17 +88,21 @@ def parse_args():
 def main():
     args = parse_args()
     cookie = log_in_and_get_cookie(args.username, args.password)
-    games = []
 
     print("Scraping bundle metadata (page count, etc.)")
     page_count = get_bundle_page_count(args.slug, cookie)
 
-    for page_number in range(1, page_count + 1):
-        print(f"Scraping page {page_number} / {page_count}")
-        games += scrape_bundle_page(args.slug, page_number, cookie)
+    # Refresh output file
+    with open(args.output_path, "w", newline="", encoding=ENCODING) as output_file:
+        writer = csv.writer(output_file)
+        writer.writerow(GameInfo.get_friendly_field_names() + ("Page in bundle",))
 
-    print(f"Writing scraped data to {args.output_path}")
-    dump_game_info(games, args.output_path)
+    for page_number in range(1, page_count + 1):
+        print(f"Handling page {page_number} / {page_count}...")
+        print("... Scraping")
+        games = scrape_bundle_page(args.slug, page_number, cookie)
+        print(f"... Writing to {args.output_path}")
+        dump_game_info(games, args.output_path, page_number)
 
 
 if __name__ == '__main__':

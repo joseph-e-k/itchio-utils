@@ -9,7 +9,6 @@ class GameInfo:
     url: str = dataclasses.field(metadata=dict(friendly_name="URL"))
     operating_systems: Set[str] = dataclasses.field(metadata=dict(friendly_formatter=", ".join))
     file_count: int
-    bundle_page_number: Optional[int]
 
     @classmethod
     def _iter_friendly_field_names(cls):
