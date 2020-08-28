@@ -10,6 +10,7 @@ from GameInfo import GameInfo
 from authentication import log_in_and_get_cookie
 
 BUNDLE_PAGE_URL_FORMAT = "https://itch.io/bundle/download/{}?page={}"
+ENCODING = "UTF-8"
 DEFAULT_OUTPUT_PATH = "./bundle_scraping_output.csv"
 
 
@@ -61,7 +62,7 @@ def get_bundle_page_html_tree(bundle_slug, cookie, page_number):
             "Cookie": cookie
         }
     )
-    return html.fromstring(response.text)
+    return html.fromstring(response.content.decode(ENCODING))
 
 
 def parse_bundle_page(html_tree):
@@ -75,15 +76,12 @@ def parse_bundle_page(html_tree):
 
 
 def dump_game_info(games, path):
-    with open(path, "w", newline="") as output_file:
+    with open(path, "w", newline="", encoding=ENCODING) as output_file:
         writer = csv.writer(output_file)
         writer.writerow(GameInfo.get_friendly_field_names())
 
         for game in games:
-            try:
-                writer.writerow(game.get_friendly_field_values())
-            except UnicodeEncodeError:
-                pass
+            writer.writerow(game.get_friendly_field_values())
 
 
 def parse_args():
