@@ -1,7 +1,8 @@
+import csv
 import functools
 import re
 import argparse
-from dataclasses import dataclass
+import dataclasses
 from typing import Set, Optional
 
 import requests
@@ -10,10 +11,10 @@ from lxml import html
 from authentication import log_in_and_get_cookie
 
 BUNDLE_PAGE_URL_FORMAT = "https://itch.io/bundle/download/{}?page={}"
-DEFAULT_OUTPUT_PATH = "./bundle_scraping_output.txt"
+DEFAULT_OUTPUT_PATH = "./bundle_scraping_output.csv"
 
 
-@dataclass
+@dataclasses.dataclass
 class GameInfo:
     title: str
     summary: str
@@ -80,11 +81,14 @@ def parse_bundle_page(html_tree):
 
 
 def dump_game_info(games, path):
-    with open(path, "w") as output_file:
-        for game_info in games:
-            block = f"Title: {game_info.title}\nSummary: {game_info.summary}\nURL: {game_info.url}\nFile count: {game_info.file_count}\nPage in bundle: {game_info.bundle_page_number}\n\n"
+    with open(path, "w", newline="") as output_file:
+        field_names = [field.name for field in dataclasses.fields(GameInfo)]
+        writer = csv.DictWriter(output_file, fieldnames=field_names)
+        writer.writeheader()
+
+        for game in games:
             try:
-                output_file.write(block)
+                writer.writerow(dataclasses.asdict(game))
             except UnicodeEncodeError:
                 pass
 
