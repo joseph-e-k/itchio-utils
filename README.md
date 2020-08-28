@@ -1,5 +1,8 @@
 # itchio-utils
+
 Utility scripts for working with itch.io. Not supported or endorsed by itch.io themselves in any way.
+
+Developed and tested with Python 3.8.5.
 
 ## scrape_bundle.py
 
