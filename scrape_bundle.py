@@ -18,10 +18,27 @@ DEFAULT_OUTPUT_PATH = "./bundle_scraping_output.csv"
 class GameInfo:
     title: str
     summary: str
-    url: str
-    operating_systems: Set[str]
+    url: str = dataclasses.field(metadata=dict(friendly_name="URL"))
+    operating_systems: Set[str] = dataclasses.field(metadata=dict(friendly_formatter=", ".join))
     file_count: int
     bundle_page_number: Optional[int]
+
+    @classmethod
+    def _iter_friendly_field_names(cls):
+        for field in dataclasses.fields(cls):
+            yield field.metadata.get('friendly_name') or field.name.replace("_", " ").capitalize()
+
+    @classmethod
+    def get_friendly_field_names(cls):
+        return tuple(cls._iter_friendly_field_names())
+
+    def _iter_friendly_field_values(self):
+        for field, value in zip(dataclasses.fields(self), dataclasses.astuple(self)):
+            friendly_formatter = field.metadata.get("friendly_formatter") or str
+            yield friendly_formatter(value)
+
+    def get_friendly_field_values(self):
+        return tuple(self._iter_friendly_field_values())
 
 
 def get_bundle_page_count(bundle_slug, cookie):
@@ -38,12 +55,17 @@ def html_to_game_info(html_tree):
     except IndexError:
         file_count_node = None
 
+    operating_systems = set()
+    operating_system_nodes = html_tree.xpath(".//div[@class='meta_row']/span[contains(@title, 'Available for ')]")
+    for node in operating_system_nodes:
+        operating_systems.add(re.match(r"Available for (\w+)", node.attrib["title"]).group(1))
+
     return GameInfo(
         title=title_node.text,
         url=title_node.attrib['href'],
         summary=summary_node.text,
         file_count=int(re.match(r"(\d+) files?", file_count_node.text).group(1)) if file_count_node is not None else 1,
-        operating_systems=set(),
+        operating_systems=operating_systems,
         bundle_page_number=None
     )
 
@@ -82,13 +104,12 @@ def parse_bundle_page(html_tree):
 
 def dump_game_info(games, path):
     with open(path, "w", newline="") as output_file:
-        field_names = [field.name for field in dataclasses.fields(GameInfo)]
-        writer = csv.DictWriter(output_file, fieldnames=field_names)
-        writer.writeheader()
+        writer = csv.writer(output_file)
+        writer.writerow(GameInfo.get_friendly_field_names())
 
         for game in games:
             try:
-                writer.writerow(dataclasses.asdict(game))
+                writer.writerow(game.get_friendly_field_values())
             except UnicodeEncodeError:
                 pass
 
