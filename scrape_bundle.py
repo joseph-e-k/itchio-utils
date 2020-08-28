@@ -78,6 +78,8 @@ def main():
     cookie = log_in_and_get_cookie(args.username, args.password)
 
     for page_number in itertools.count(1):
+        print(f"Scraping page #{page_number}...")
+
         response = requests.request(
             method="GET",
             url=BUNDLE_PAGE_URL_FORMAT.format(args.slug, page_number),
@@ -87,6 +89,7 @@ def main():
         )
 
         if response.status_code == http.HTTPStatus.NOT_FOUND:
+            print("No such page. Scraping over.")
             break
 
         games_in_page = parse_bundle_page(response.text)
@@ -94,6 +97,7 @@ def main():
             game_info.bundle_page_number = page_number
         games += games_in_page
 
+    print(f"Writing scraped data to {args.output_path}")
     dump_game_info(games, args.output_path)
 
 
