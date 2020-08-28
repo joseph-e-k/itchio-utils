@@ -1,7 +1,6 @@
-import http
+import functools
 import re
 import argparse
-import itertools
 from dataclasses import dataclass
 from typing import Set, Optional
 
@@ -24,6 +23,12 @@ class GameInfo:
     bundle_page_number: Optional[int]
 
 
+def get_bundle_page_count(bundle_slug, cookie):
+    first_page_html_tree = get_bundle_page_html_tree(bundle_slug, cookie, 1)
+    page_count_node = first_page_html_tree.xpath("//span[@class='pager_label']/a")[0]
+    return int(page_count_node.text)
+
+
 def html_to_game_info(html_tree):
     title_node = html_tree.xpath(".//h2[@class='game_title']/a")[0]
     summary_node = html_tree.xpath(".//div[@class='meta_row game_short_text']")[0]
@@ -42,12 +47,35 @@ def html_to_game_info(html_tree):
     )
 
 
-def parse_bundle_page(page_text):
-    html_tree = html.fromstring(page_text)
+def scrape_bundle_page(bundle_slug, page_number, cookie):
+    page_html_tree = get_bundle_page_html_tree(bundle_slug, cookie, page_number)
+
+    games_in_page = parse_bundle_page(page_html_tree)
+    for game_info in games_in_page:
+        game_info.bundle_page_number = page_number
+
+    return games_in_page
+
+
+@functools.lru_cache
+def get_bundle_page_html_tree(bundle_slug, cookie, page_number):
+    response = requests.request(
+        method="GET",
+        url=BUNDLE_PAGE_URL_FORMAT.format(bundle_slug, page_number),
+        headers={
+            "Cookie": cookie
+        }
+    )
+    return html.fromstring(response.text)
+
+
+def parse_bundle_page(html_tree):
     game_rows = html_tree.xpath("//div[@class='game_row']")
     games = []
+
     for game_row in game_rows:
         games.append(html_to_game_info(game_row))
+
     return games
 
 
@@ -72,30 +100,15 @@ def parse_args():
 
 def main():
     args = parse_args()
-
+    cookie = log_in_and_get_cookie(args.username, args.password)
     games = []
 
-    cookie = log_in_and_get_cookie(args.username, args.password)
+    print("Scraping bundle metadata (page count, etc.)")
+    page_count = get_bundle_page_count(args.slug, cookie)
 
-    for page_number in itertools.count(1):
-        print(f"Scraping page #{page_number}...")
-
-        response = requests.request(
-            method="GET",
-            url=BUNDLE_PAGE_URL_FORMAT.format(args.slug, page_number),
-            headers={
-                "Cookie": cookie
-            }
-        )
-
-        if response.status_code == http.HTTPStatus.NOT_FOUND:
-            print("No such page. Scraping over.")
-            break
-
-        games_in_page = parse_bundle_page(response.text)
-        for game_info in games_in_page:
-            game_info.bundle_page_number = page_number
-        games += games_in_page
+    for page_number in range(1, page_count + 1):
+        print(f"Scraping page {page_number} / {page_count}")
+        games += scrape_bundle_page(args.slug, page_number, cookie)
 
     print(f"Writing scraped data to {args.output_path}")
     dump_game_info(games, args.output_path)
