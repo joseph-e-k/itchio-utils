@@ -6,7 +6,7 @@ Developed and tested with Python 3.8.5.
 
 ## scrape_bundle.py
 
-Scrapes the table of contents of a bundle. Initially written shortly after the massive Racial Justice Bundle dropped and before itch.io had implemented search within bundles.
+Scrapes the table of contents of a bundle and outputs a CSV (comma-separated values) file. Initially written shortly after the massive Racial Justice Bundle dropped and before itch.io had implemented search within bundles.
 
 Usage: `python scrape_bundle.py USERNAME PASSWORD SLUG` or `python scrape_bundle.py USERNAME PASSWORD SLUG --output-path OUTPUT_PATH`
 
@@ -14,4 +14,4 @@ Where `USERNAME` and `PASSWORD` are the username and password you use to log in 
 
 To find the correct `SLUG`, browse to the bundle in your library and you should find yourself at a URL that looks like `https://itch.io/bundle/download/XXXX`, where `XXXX` is a long string of letters and numbers. That `XXXX` is the slug; just copy and paste it.
 
-You may optionally also specify an output path; by default, output goes to `./bundle_scraping_output.txt`.
+You may optionally also specify an output path; by default, output goes to `./bundle_scraping_output.csv`.
