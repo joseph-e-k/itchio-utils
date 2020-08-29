@@ -3,6 +3,7 @@ import functools
 import re
 from collections import defaultdict
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
 
 import requests
 from lxml import html
@@ -140,12 +141,11 @@ class BundleScraper(Scraper):
 
     def parse_bundle_page(self, html_tree):
         game_rows = html_tree.xpath("//div[@class='game_row']")
-        games = []
 
-        for game_row in game_rows:
-            games.append(self.bundle_entry_html_to_game_info(game_row))
+        with ThreadPoolExecutor() as executor:
+            games = executor.map(self.bundle_entry_html_to_game_info, game_rows, timeout=60)
 
-        return games
+        return list(games)
 
     def bundle_entry_html_to_game_info(self, html_tree):
         title_node = html_tree.xpath(".//h2[@class='game_title']/a")[0]
