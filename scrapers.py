@@ -62,7 +62,7 @@ class NodeWrapper:
 
 
 @dataclasses.dataclass(frozen=True)
-class Connection:
+class Scraper:
     username: str
     cookie: str
 
@@ -119,11 +119,11 @@ class Connection:
         return datetime.strptime(datetime_string, "%d %B %Y @ %H:%M")
 
     def get_bundle(self, bundle_slug):
-        return BundleConnection(slug=bundle_slug, **dataclasses.asdict(self))
+        return BundleScraper(slug=bundle_slug, **dataclasses.asdict(self))
 
 
 @dataclasses.dataclass(frozen=True)
-class BundleConnection(Connection):
+class BundleScraper(Scraper):
     slug: str
 
     def get_bundle_page_count(self):
@@ -206,4 +206,4 @@ def connect(username, password):
     login_token = re.search(r"\bitchio=([a-zA-Z0-9%]+);", login_response_cookies).group(1)
     cookie = f"itchio_token={itchio_token}; itchio={login_token}"
 
-    return Connection(username, cookie)
+    return Scraper(username, cookie)
