@@ -25,7 +25,7 @@ class BundleScraper(Scraper):
         return self.get_page_html_tree(BUNDLE_PAGE_URL_FORMAT.format(self.slug, page_number))
 
     def bundle_entry_html_to_game_info(self, entry_node):
-        return BundleEntryScraper(self.username, self.cookie, entry_node).get_game_info()
+        return BundleEntryScraper(self.cookie, entry_node).get_game_info()
 
     def parse_bundle_page(self, html_tree):
         game_rows = html_tree.xpath("//div[@class='game_row']")

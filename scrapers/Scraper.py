@@ -60,7 +60,6 @@ class NodeWrapper:
 
 @dataclasses.dataclass(frozen=True)
 class Scraper:
-    username: str
     cookie: str
 
     @functools.lru_cache

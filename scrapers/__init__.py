@@ -32,4 +32,4 @@ def connect(username, password):
     login_token = re.search(r"\bitchio=([a-zA-Z0-9%]+);", login_response_cookies).group(1)
     cookie = f"itchio_token={itchio_token}; itchio={login_token}"
 
-    return TopLevelScraper(username, cookie)
+    return TopLevelScraper(cookie)
