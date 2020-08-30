@@ -21,7 +21,8 @@ def format_datetime(dt: datetime):
 
 
 @dataclasses.dataclass
-class ItchMetadataBlock:
+class ItchGamePageInfo:
+    description: Optional[str] = None
     published_at: Optional[datetime] = field(friendly_formatter=format_datetime, default=None)
     updated_at: Optional[datetime] = field(friendly_formatter=format_datetime, default=None)
     status: Optional[str] = None
@@ -39,7 +40,7 @@ class ItchMetadataBlock:
 
 
 @dataclasses.dataclass
-class GameInfo(ItchMetadataBlock):
+class GameInfo(ItchGamePageInfo):
     title: Optional[str] = None
     summary: Optional[str] = None
     url: Optional[str] = field(friendly_name="URL", default=None)
@@ -49,7 +50,7 @@ class GameInfo(ItchMetadataBlock):
     @classmethod
     def _iter_fields(cls):
         fields = list(dataclasses.fields(cls))
-        fields.sort(key=lambda field: field in dataclasses.fields(ItchMetadataBlock))
+        fields.sort(key=lambda field: field in dataclasses.fields(ItchGamePageInfo))
         yield from fields
 
     @classmethod

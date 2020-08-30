@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 import requests
 from lxml import html
 
-from GameInfo import GameInfo, ItchMetadataBlock
+from GameInfo import GameInfo, ItchGamePageInfo
 
 LOGIN_URL = "https://itch.io/login"
 ITCH_WEB_ENCODING = "UTF-8"
@@ -81,24 +81,28 @@ class Scraper:
 
         return html.fromstring(response.content.decode(ITCH_WEB_ENCODING))
 
-    def scrape_itch_metadata_block(self, url):
+    def scrape_itch_game_page_info(self, url):
         try:
             page_tree = self.get_page_html_tree(url)
         except requests.HTTPError:
-            return ItchMetadataBlock()
+            return ItchGamePageInfo()
 
         try:
-            table_body_node = page_tree.xpath("//div[@class='game_info_panel_widget']/table/tbody")[0]
+            custom_page_node = page_tree.xpath("//div[contains(@class, 'page_widget')]")[0]
+            description_node = custom_page_node.xpath(".//div[contains(@class, 'formatted_description')]")[0]
         except IndexError:
-            print(f"No metadata block found at {url}")
-            raise
+            description = ""
+        else:
+            description = html.tostring(description_node, pretty_print=True, encoding="unicode")
 
+        table_body_node = page_tree.xpath("//div[@class='game_info_panel_widget']/table/tbody")[0]
         nodes = defaultdict(NodeWrapper, {
             row_node.xpath("./td")[0].text: NodeWrapper(row_node.xpath("./td")[1])
             for row_node in table_body_node.xpath("./tr")
         })
 
-        return ItchMetadataBlock(
+        return ItchGamePageInfo(
+            description=description,
             published_at=self._parse_datetime(nodes["Published"].get_attribute("title")),
             updated_at=self._parse_datetime(nodes["Updated"].get_attribute("title")),
             status=nodes["Status"].text,
@@ -171,7 +175,7 @@ class BundleScraper(Scraper):
         if re.match(r".*/.*/download/[a-zA-Z0-9_]+", url):
             url = "/".join(url.split("/")[:-2])
 
-        itch_metadata_block = self.scrape_itch_metadata_block(url)
+        itch_metadata_block = self.scrape_itch_game_page_info(url)
 
         return GameInfo(
             title=title_node.text,
