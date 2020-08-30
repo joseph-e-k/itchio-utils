@@ -1,7 +1,7 @@
 import dataclasses
 
 from datetime import datetime
-from typing import Set, Tuple, Optional
+from typing import Set, Tuple, Optional, Sequence
 
 from decorators import aggregator
 from records.Record import Record
@@ -14,7 +14,6 @@ def format_datetime(dt: datetime):
     return dt.strftime(DATETIME_FRIENDLY_FORMAT)
 
 
-@dataclasses.dataclass
 class ItchGamePageInfo(Record):
     description: Optional[str] = None
     published_at: Optional[datetime] = field(friendly_formatter=format_datetime, default=None)
@@ -23,8 +22,8 @@ class ItchGamePageInfo(Record):
     category: Optional[str] = None
     mean_rating: Optional[float] = None
     number_of_ratings: Optional[int] = None
-    author_names: Set[str] = field(friendly_formatter=", ".join, default=frozenset())
-    author_urls: Set[str] = field(friendly_name="Author URLs", friendly_formatter="\n".join, default=frozenset())
+    author_names: Sequence[str] = field(friendly_formatter=", ".join, default=())
+    author_urls: Sequence[str] = field(friendly_name="Author URLs", friendly_formatter="\n".join, default=())
     genre: Optional[str] = None
     tags: Set[str] = field(friendly_formatter=", ".join, default=frozenset())
     links: Set[Tuple[str, str]] = field(

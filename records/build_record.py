@@ -16,6 +16,8 @@ class RecordBuilder:
         return field_builders
 
     def __init_subclass__(cls, **kwargs):
+        cls._field_builders = {}
+
         for cls_member in vars(cls).values():
             if not callable(cls_member):
                 continue
@@ -30,7 +32,12 @@ class RecordBuilder:
         for field, builder_method in self._get_field_builders().items():
             if field is None:
                 pass
-            field_names_to_values[field.name] = builder_method(self, *args, **kwargs)
+
+            try:
+                field_names_to_values[field.name] = builder_method(self, *args, **kwargs)
+            except Exception:
+                print(f"Error while constructing field {record_type.__name__}.{field.name}")
+                raise
 
         return record_type(**field_names_to_values)
 
