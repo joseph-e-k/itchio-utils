@@ -3,17 +3,11 @@ import dataclasses
 from datetime import datetime
 from typing import Set, Tuple, Optional
 
+from decorators import aggregator
+from records.Record import Record
+from records.friendly_fields import field, get_friendly_fields
+
 DATETIME_FRIENDLY_FORMAT = "%Y-%m-%d %H:%M"
-
-
-def field(**kwargs):
-    base_kwargs = {}
-
-    for key in ["default"]:
-        if key in kwargs:
-            base_kwargs[key] = kwargs.pop(key)
-
-    return dataclasses.field(metadata=kwargs, **base_kwargs)
 
 
 def format_datetime(dt: datetime):
@@ -21,7 +15,7 @@ def format_datetime(dt: datetime):
 
 
 @dataclasses.dataclass
-class ItchGamePageInfo:
+class ItchGamePageInfo(Record):
     description: Optional[str] = None
     published_at: Optional[datetime] = field(friendly_formatter=format_datetime, default=None)
     updated_at: Optional[datetime] = field(friendly_formatter=format_datetime, default=None)
@@ -39,38 +33,29 @@ class ItchGamePageInfo:
     )
 
 
-@dataclasses.dataclass
-class GameInfo(ItchGamePageInfo):
+class GameInfo(Record):
     title: Optional[str] = None
     summary: Optional[str] = None
     url: Optional[str] = field(friendly_name="URL", default=None)
     operating_systems: Set[str] = field(friendly_formatter=", ".join, default=frozenset())
     file_count: int = 1
+    details: Optional[ItchGamePageInfo] = field(is_friendly=False, default=ItchGamePageInfo())
 
     @classmethod
-    def _iter_fields(cls):
-        fields = list(dataclasses.fields(cls))
-        fields.sort(key=lambda field: field in dataclasses.fields(ItchGamePageInfo))
-        yield from fields
+    def _get_user_facing_data(cls):
+        return [
+            (f.friendly_name, f) for f in get_friendly_fields(cls)
+        ] + [
+            (f.friendly_name, lambda self, f=f: f(self.details)) for f in get_friendly_fields(ItchGamePageInfo)
+        ]
 
     @classmethod
-    def _iter_friendly_field_names(cls):
-        for field in cls._iter_fields():
-            yield field.metadata.get("friendly_name") or field.name.replace("_", " ").capitalize()
+    @aggregator(tuple)
+    def get_user_facing_field_names(cls):
+        for name, getter in cls._get_user_facing_data():
+            yield name
 
-    @classmethod
-    def get_friendly_field_names(cls):
-        return tuple(cls._iter_friendly_field_names())
-
-    def _iter_friendly_field_values(self):
-        for field in self._iter_fields():
-            value = getattr(self, field.name)
-
-            if value is None:
-                yield str()
-            else:
-                friendly_formatter = field.metadata.get("friendly_formatter") or str
-                yield friendly_formatter(value)
-
-    def get_friendly_field_values(self):
-        return tuple(self._iter_friendly_field_values())
+    @aggregator(tuple)
+    def get_user_facing_field_values(self):
+        for name, getter in self._get_user_facing_data():
+            yield getter(self)

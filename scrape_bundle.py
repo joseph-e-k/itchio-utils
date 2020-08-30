@@ -1,7 +1,7 @@
 import argparse
 import csv
 
-from GameInfo import GameInfo
+from records.GameInfo import GameInfo
 from scrapers import connect
 
 BUNDLE_PAGE_URL_FORMAT = "https://itch.io/bundle/download/{}?page={}"
@@ -13,7 +13,7 @@ def dump_game_info(games, path, page_in_bundle):
     with open(path, "a", newline="", encoding=OUTPUT_ENCODING) as output_file:
         writer = csv.writer(output_file)
         for game in games:
-            writer.writerow(game.get_friendly_field_values() + (page_in_bundle,))
+            writer.writerow(game.get_user_facing_field_values() + (page_in_bundle,))
 
 
 def parse_args():
@@ -35,7 +35,7 @@ def main():
     # Refresh output file
     with open(args.output_path, "w", newline="", encoding=OUTPUT_ENCODING) as output_file:
         writer = csv.writer(output_file)
-        writer.writerow(GameInfo.get_friendly_field_names() + ("Page in bundle",))
+        writer.writerow(GameInfo.get_user_facing_field_names() + ("Page in bundle",))
 
     for page_number in range(1, page_count + 1):
         print(f"Handling page {page_number} / {page_count}...")

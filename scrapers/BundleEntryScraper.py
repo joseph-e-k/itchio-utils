@@ -7,8 +7,9 @@ from datetime import datetime
 import requests
 from lxml import html
 
-from GameInfo import GameInfo, ItchGamePageInfo
+from records.GameInfo import GameInfo, ItchGamePageInfo
 from decorators import aggregator
+from records.build_record import RecordBuilder, field_builder
 from scrapers.Scraper import Scraper
 
 
@@ -60,16 +61,22 @@ class NodeWrapper:
 
 
 @dataclasses.dataclass(frozen=True)
-class BundleEntryScraper(Scraper):
+class BundleEntryScraper(Scraper, RecordBuilder):
     root_node: html.HtmlElement
 
     @functools.lru_cache
     def _get_title_node(self):
         return self.root_node.xpath(".//h2[@class='game_title']/a")[0]
 
+    @field_builder(GameInfo.title)
+    def _get_title(self):
+        return self._get_title_node().text
+
+    @field_builder(GameInfo.summary)
     def _get_summary(self):
         return self.root_node.xpath(".//div[@class='meta_row game_short_text']")[0].text
 
+    @field_builder(GameInfo.file_count)
     def _get_file_count(self):
         try:
             file_count_node = self.root_node.xpath(".//div[@class='meta_row file_count']")[0]
@@ -78,6 +85,7 @@ class BundleEntryScraper(Scraper):
         else:
             return int(re.match(r"(\d+) files?", file_count_node.text).group(1))
 
+    @field_builder(GameInfo.operating_systems)
     @aggregator(frozenset)
     def _get_operating_systems(self):
         operating_system_nodes = self.root_node.xpath(
@@ -86,6 +94,7 @@ class BundleEntryScraper(Scraper):
         for node in operating_system_nodes:
             yield re.match(r"Available for (\w+)", node.attrib["title"]).group(1)
 
+    @field_builder(GameInfo.url)
     @functools.lru_cache
     def _get_url(self):
         url = self._get_title_node().attrib['href']
@@ -93,21 +102,10 @@ class BundleEntryScraper(Scraper):
             return "/".join(url.split("/")[:-2])
         return url
 
-    def get_game_info(self):
-        itch_game_page_info = self.scrape_itch_game_page_info(self._get_url())
-
-        return GameInfo(
-            title=self._get_title_node().text,
-            url=self._get_url(),
-            summary=self._get_summary(),
-            file_count=self._get_file_count(),
-            operating_systems=self._get_operating_systems(),
-            **dataclasses.asdict(itch_game_page_info)
-        )
-
-    def scrape_itch_game_page_info(self, url):
+    @field_builder(GameInfo.details)
+    def scrape_itch_game_page_info(self):
         try:
-            page_tree = self.get_page_html_tree(url)
+            page_tree = self.get_page_html_tree(self._get_url())
         except requests.HTTPError:
             return ItchGamePageInfo()
 
