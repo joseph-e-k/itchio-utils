@@ -4,7 +4,6 @@ from datetime import datetime
 from typing import Set, Tuple, Optional, Sequence
 
 from decorators import aggregator
-from records.Record import Record
 from records.friendly_fields import field, get_friendly_fields
 
 DATETIME_FRIENDLY_FORMAT = "%Y-%m-%d %H:%M"
@@ -14,7 +13,8 @@ def format_datetime(dt: datetime):
     return dt.strftime(DATETIME_FRIENDLY_FORMAT)
 
 
-class ItchGamePageInfo(Record):
+@dataclasses.dataclass(frozen=True)
+class ItchGamePageInfo:
     description: Optional[str] = None
     published_at: Optional[datetime] = field(friendly_formatter=format_datetime, default=None)
     updated_at: Optional[datetime] = field(friendly_formatter=format_datetime, default=None)
@@ -32,7 +32,8 @@ class ItchGamePageInfo(Record):
     )
 
 
-class GameInfo(Record):
+@dataclasses.dataclass(frozen=True)
+class GameInfo:
     title: Optional[str] = None
     summary: Optional[str] = None
     url: Optional[str] = field(friendly_name="URL", default=None)

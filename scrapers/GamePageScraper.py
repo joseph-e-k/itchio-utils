@@ -6,7 +6,6 @@ from lxml import html
 
 from decorators import aggregator
 from records.GameInfo import ItchGamePageInfo
-from records.build_record import RecordBuilder, field_builder
 from scrapers.Scraper import Scraper
 
 
@@ -17,11 +16,26 @@ def optional_call(func, arg):
 
 
 @dataclasses.dataclass(frozen=True)
-class GamePageScraper(Scraper, RecordBuilder):
+class GamePageScraper(Scraper):
     root_node: html.HtmlEntity
 
-    @field_builder(ItchGamePageInfo.description)
-    def get_description(self):
+    def get_game_page_info(self):
+        return ItchGamePageInfo(
+            description=self._get_description(),
+            published_at=self._get_publication_date(),
+            updated_at=self._get_update_date(),
+            status=self._get_status(),
+            category=self._get_category(),
+            mean_rating=self._get_mean_rating(),
+            number_of_ratings=self._get_number_of_ratings(),
+            author_names=self._get_author_names(),
+            author_urls=self._get_author_urls(),
+            genre=self._get_genre(),
+            tags=self._get_tags(),
+            links=self._get_links()
+        )
+
+    def _get_description(self):
         try:
             custom_page_node = self.root_node.xpath("//div[contains(@class, 'page_widget')]")[0]
             description_node = custom_page_node.xpath(".//div[contains(@class, 'formatted_description')]")[0]
@@ -37,46 +51,40 @@ class GamePageScraper(Scraper, RecordBuilder):
             for row_node in table_body_node.xpath("./tr")
         }
 
-    def get_simple_row_node(self, row_name):
+    def _get_simple_row_node(self, row_name):
         try:
             return self.table_nodes[row_name].xpath("./*")[0]
         except (KeyError, IndexError):
             return None
 
-    def get_simple_row_attribute(self, row_name, attribute_name):
-        node = self.get_simple_row_node(row_name)
+    def _get_simple_row_attribute(self, row_name, attribute_name):
+        node = self._get_simple_row_node(row_name)
         if node is None:
             return None
         return node.attrib[attribute_name]
 
-    def get_simple_row_text(self, row_name):
-        node = self.get_simple_row_node(row_name)
+    def _get_simple_row_text(self, row_name):
+        node = self._get_simple_row_node(row_name)
         if node is None:
             return None
         return node.text
 
-    @field_builder(ItchGamePageInfo.published_at)
-    def get_publication_date(self):
-        return self._parse_datetime(self.get_simple_row_attribute("Published", "title"))
+    def _get_publication_date(self):
+        return self._parse_datetime(self._get_simple_row_attribute("Published", "title"))
 
-    @field_builder(ItchGamePageInfo.updated_at)
-    def get_update_date(self):
-        return self._parse_datetime(self.get_simple_row_attribute("Updated", "title"))
+    def _get_update_date(self):
+        return self._parse_datetime(self._get_simple_row_attribute("Updated", "title"))
 
-    @field_builder(ItchGamePageInfo.status)
-    def get_status(self):
-        return self.get_simple_row_text("Status")
+    def _get_status(self):
+        return self._get_simple_row_text("Status")
 
-    @field_builder(ItchGamePageInfo.category)
-    def get_category(self):
-        return self.get_simple_row_text("Category")
+    def _get_category(self):
+        return self._get_simple_row_text("Category")
 
-    @field_builder(ItchGamePageInfo.mean_rating)
-    def get_mean_rating(self):
-        return optional_call(float, self.get_simple_row_attribute("Rating", "title"))
+    def _get_mean_rating(self):
+        return optional_call(float, self._get_simple_row_attribute("Rating", "title"))
 
-    @field_builder(ItchGamePageInfo.number_of_ratings)
-    def get_number_of_ratings(self):
+    def _get_number_of_ratings(self):
         try:
             count_str = self.table_nodes["Rating"].xpath("./*/span[@class='rating_count']")[0].attrib["content"]
         except (KeyError, IndexError):
@@ -85,7 +93,7 @@ class GamePageScraper(Scraper, RecordBuilder):
 
     @functools.cached_property
     @aggregator(tuple)
-    def author_nodes(self):
+    def _author_nodes(self):
         parent_node = self.table_nodes.get("Authors")
         if parent_node is None:
             parent_node = self.table_nodes.get("Author")
@@ -94,31 +102,26 @@ class GamePageScraper(Scraper, RecordBuilder):
 
         yield from parent_node
 
-    @field_builder(ItchGamePageInfo.author_names)
     @aggregator(tuple)
-    def get_author_names(self):
-        for author_node in self.author_nodes:
+    def _get_author_names(self):
+        for author_node in self._author_nodes:
             yield author_node.text
 
-    @field_builder(ItchGamePageInfo.author_names)
     @aggregator(tuple)
-    def get_author_names(self):
-        for author_node in self.author_nodes:
+    def _get_author_urls(self):
+        for author_node in self._author_nodes:
             yield author_node.attrib["href"]
 
-    @field_builder(ItchGamePageInfo.genre)
-    def get_genre(self):
-        return self.get_simple_row_text("Genre")
+    def _get_genre(self):
+        return self._get_simple_row_text("Genre")
 
-    @field_builder(ItchGamePageInfo.tags)
     @aggregator(frozenset)
-    def get_tags(self):
+    def _get_tags(self):
         for child_node in self.table_nodes.get("Tags", []):
             yield child_node.text
 
-    @field_builder(ItchGamePageInfo.links)
     @aggregator(frozenset)
-    def get_links(self):
+    def _get_links(self):
         for child_node in self.table_nodes.get("Links", []):
             yield child_node.text, child_node.attrib["href"]
 
