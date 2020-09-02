@@ -14,8 +14,7 @@ class Scraper:
 
     @functools.lru_cache
     def get_page_html_tree(self, url):
-        response = requests.request(
-            method="GET",
+        response = requests.get(
             url=url,
             headers={
                 "Cookie": self.cookie
