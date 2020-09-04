@@ -6,18 +6,33 @@ from enum import Enum
 from command_line_utils import prompt_user_choice
 from records.GameInfo import GameInfo
 from scrapers import connect
-
+from scrapers.TopLevelScraper import NoMatchesException, AmbiguityException
 
 BUNDLE_PAGE_URL_FORMAT = "https://itch.io/bundle/download/{}?page={}"
 OUTPUT_ENCODING = "UTF-8"
 DEFAULT_OUTPUT_PATH = "./bundle_scraping_output.csv"
 PAGE_IN_BUNDLE_HEADER = "Page in bundle"
+EXIT_CODE_COULD_NOT_IDENTIFY_BUNDLE = 10
 
 
 class OutputFileConflictActions(Enum):
     OVERWRITE = "O"
     CONTINUE = "C"
     PROMPT = "P"
+
+
+def get_bundle_connection(username, password, bundle_name):
+    try:
+        connection = connect(username, password).get_bundle(bundle_name)
+    except NoMatchesException:
+        print(f'No bundle found whose name contains "{bundle_name}"')
+        return None
+    except AmbiguityException as error:
+        print(f'Multiple bundles found whose name contains "{bundle_name}":')
+        for possibility in error.args[0]:
+            print(possibility)
+        return None
+    return connection
 
 
 def open_output_file(path, mode):
@@ -54,6 +69,12 @@ def guarantee_output_path(path, conflict_action):
     return path
 
 
+def get_starting_page_number(old_output_path):
+    with open_output_file(old_output_path, "r") as old_output_file:
+        dict_reader = csv.DictReader(old_output_file)
+        return max((int(entry[PAGE_IN_BUNDLE_HEADER]) for entry in dict_reader), default=0) + 1
+
+
 def dump_game_info(games, path, page_in_bundle):
     with open(path, "a", newline="", encoding=OUTPUT_ENCODING) as output_file:
         writer = csv.writer(output_file)
@@ -65,7 +86,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("username")
     parser.add_argument("password")
-    parser.add_argument("slug")
+    parser.add_argument("bundle_name")
     parser.add_argument("--output-path", default=DEFAULT_OUTPUT_PATH)
     parser.add_argument(
         "-o",
@@ -87,22 +108,22 @@ def parse_args():
 
 def main():
     args = parse_args()
-    connection = connect(args.username, args.password).get_bundle(args.slug)
+
+    connection = get_bundle_connection(args.username, args.password, args.bundle_name)
+    if connection is None:
+        return EXIT_CODE_COULD_NOT_IDENTIFY_BUNDLE
 
     print("Scraping bundle metadata (page count, etc.)")
     page_count = connection.get_bundle_page_count()
 
     output_path = guarantee_output_path(args.output_path, args.output_file_conflict_action)
 
-    with open_output_file(output_path, "r") as old_output_file:
-        dict_reader = csv.DictReader(old_output_file)
-        starting_page_number = max((int(entry[PAGE_IN_BUNDLE_HEADER]) for entry in dict_reader), default=0) + 1
-
-    print(f"{starting_page_number - 1} / {page_count} pages already scraped")
+    starting_page_number = get_starting_page_number(output_path)
+    print(f"{starting_page_number - 1} / {page_count} pages already downloaded")
 
     for page_number in range(starting_page_number, page_count + 1):
-        print(f"Handling page {page_number} / {page_count}...")
-        print("... Scraping")
+        print(f"Scraping page {page_number} / {page_count}...")
+        print("... Reading")
         games = connection.scrape_bundle_page(page_number)
         print(f"... Writing to {output_path}")
         dump_game_info(games, output_path, page_number)
